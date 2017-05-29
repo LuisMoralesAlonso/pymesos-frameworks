@@ -2,4 +2,4 @@
 
 Docker example for generating python project with virtualenv
 
-docker run -e VERSION=3.4 -e MASTER_IP=xxx cirobarradov/python-docker /app/init.sh
+docker run -it luismorales/pymesos:4.0 /app/scheduler.sh <message>
