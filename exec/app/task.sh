@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # create a virtualenv we can later use
 #mkdir -p /venv/
 # install python version on virtual environment
@@ -13,4 +13,4 @@
 #docker run -e VERSION=2.7 -e MASTER_IP=172.16.48.181 -v /home/rbravo/datio/techlab/python-docker/app:/opt prueba /opt/app.
 env
 . /venv/bin/activate
-python /app/task.py	"hola mundo, koño"
+python /app/task.py	$1

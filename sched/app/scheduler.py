@@ -55,8 +55,8 @@ class MinimalScheduler(Scheduler):
             ]
 
             task.command.shell = True
-            task.command.value = '/app/task.sh'
-            task.command.arguments = [self._message]
+            task.command.value = '/app/task.sh '+self._message
+#            task.command.arguments = [self._message]
             
             driver.launchTasks(offer.id, [task], filters)
 
