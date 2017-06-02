@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import sys
 import time
-from addict import Dict
 
 def minimalTask(message):
     logging.debug(message)

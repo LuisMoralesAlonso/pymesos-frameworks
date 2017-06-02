@@ -1,0 +1,18 @@
+{
+  "id": "/pymesos-minimal",
+  "instances": 1,
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "luismorales/pymesos:4.0",
+      "forcePullImage": true
+    }
+  },
+  "cpus": 0.1,
+  "mem": 128,
+  "cmd": "/app/scheduler.py \"ya hemos llegado\"",
+  "env": {
+    "MASTER": "192.168.1.30:5050",
+    "DOCKER_TASK": "luismorales/pymesos-exec:4.0"
+  }
+}
