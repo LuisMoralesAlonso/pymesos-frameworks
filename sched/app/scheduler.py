@@ -7,26 +7,27 @@ import signal
 import getpass
 from threading import Thread
 import os
-import redis
+import redis, hiredis
 
 from pymesos import MesosSchedulerDriver, Scheduler, encode_data
 from addict import Dict
 
-TASK_CPU = 1
+TASK_CPU = 0.2
 TASK_MEM = 32
 EXECUTOR_CPUS = 1
 EXECUTOR_MEM = 32
 
 
 class MinimalScheduler(Scheduler):
-    def __init__(self, message):
-        self._redis = redis.StrictRedis(host=os.getenv('REDIS_SERVER'), port=6379, db=0)
+    def __init__(self, message, conn):
+        self._redis = conn
         self._message = message
 
     def registered(self, driver, frameworkId, masterInfo):
         #set max tasks to framework registered
         logging.info("************registered     " + frameworkId['value'])
-        self._redis.set(frameworkId['value'], int(os.getenv('MAX_TASKS')))
+        self._redis.set(os.getenv('MARATHON_APP_ID'), int(os.getenv('MAX_TASKS')))
+        self._redis.set(os.getenv('MARATHON_APP_ID'),frameworkId['value'])
         #logging.info(masterInfo)
         #logging.info(driver)
         logging.info("<---")
@@ -104,11 +105,13 @@ class MinimalScheduler(Scheduler):
             
     
 def main(message):
+    connection = redis.StrictRedis(host=os.getenv('REDIS_SERVER'), port=6379, db=0)
     framework = Dict()
     framework.user = getpass.getuser()
     framework.name = "MinimalFramework"
     framework.hostname = socket.gethostname()
-    framework._id='003fba48-218a-484d-97d2-3ab5c89c9257-0277'
+    if connection.exists(os.getenv('MARATHON_APP_ID')):
+        framework._id = connection.get(os.getenv('MARATHON_APP_ID'))
 
     driver = MesosSchedulerDriver(
         MinimalScheduler(message),

@@ -32,5 +32,3 @@ RUN . /venv/bin/activate \
 ADD app/ /app/
 
 RUN chmod a+x /app/task.sh
-
-# ENTRYPOINT /app/executor.sh
