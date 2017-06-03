@@ -26,27 +26,27 @@ class MinimalScheduler(Scheduler):
     def registered(self, driver, frameworkId, masterInfo):
         #set max tasks to framework registered
         logging.info("************registered     " + frameworkId['value'])
-        self._redis.set(os.getenv('MARATHON_APP_ID'), int(os.getenv('MAX_TASKS')))
-        self._redis.set(os.getenv('MARATHON_APP_ID'),frameworkId['value'])
+        self._redis.hset(os.getenv('MARATHON_APP_ID'), 'max_tasks', int(os.getenv('MAX_TASKS')))
+        self._redis.hset(os.getenv('MARATHON_APP_ID'),'fwk_id',frameworkId['value'])
         #logging.info(masterInfo)
         #logging.info(driver)
         logging.info("<---")
 
     def reregistered(self, driver, masterInfo):
-        logging.info("************RE RE gistered")
+        logging.info("************re-registered  ")
         logging.info(masterInfo)
         #logging.info(self)
         logging.info(driver)
         logging.info("<---")
 
-    def checkTask(self, frameworkID):
+    def checkTask(self, frameworkId):
 
-        if int(self._redis.get(frameworkID)) <= 0:
+        if int(self._redis.hget(os.getenv('MARATHON_APP_ID'),'max_tasks')) <= 0:
             logging.info("maximum number of tasks")
             raise Exception('maximum number of tasks')
         else:
-            logging.info("number tasks available = "+self._redis.get(frameworkID) + " of " + os.getenv("MAX_TASKS") )
-            self._redis.decr(frameworkID)
+            logging.info("number tasks available = "+self._redis.hget(os.getenv('MARATHON_APP_ID'),'max_tasks') + " of " + os.getenv("MAX_TASKS") )
+            self._redis.hincrby(os.getenv('MARATHON_APP_ID'),'max_tasks',-1)
         #logging.info(framework)
         #logging.info(_redis.get('foo'))
         # queue????
@@ -100,8 +100,8 @@ class MinimalScheduler(Scheduler):
                       update.state)
         if update.state == "TASK_FINISHED":
             logging.info("take another task for framework" + driver.framework_id)
-            self._redis.incr(driver.framework_id)
-            logging.info("tasks availables = " + self._redis.get(driver.framework_id)+ " of "+os.getenv("MAX_TASKS"))
+            self._redis.hincrby(os.getenv('MARATHON_APP_ID'),'max_tasks',1)
+            logging.info("tasks availables = " + self._redis.hget(os.getenv('MARATHON_APP_ID'),'max_tasks')+ " of "+os.getenv("MAX_TASKS"))
             
     
 def main(message):
@@ -109,12 +109,13 @@ def main(message):
     framework = Dict()
     framework.user = getpass.getuser()
     framework.name = "MinimalFramework"
-    framework.hostname = socket.gethostname()
-    if connection.exists(os.getenv('MARATHON_APP_ID')):
-        framework._id = connection.get(os.getenv('MARATHON_APP_ID'))
+    framework.hosthname = socket.gethostname()
+    if connection.hexists(os.getenv('MARATHON_APP_ID'),'fwk_id'):
+        logging.info("framework id already registered in redis")
+        framework._id = connection.hget(os.getenv('MARATHON_APP_ID'),'fwk_id')
 
     driver = MesosSchedulerDriver(
-        MinimalScheduler(message),
+        MinimalScheduler(message, connection),
         framework,
         os.getenv('MASTER'),
         use_addict=True,
