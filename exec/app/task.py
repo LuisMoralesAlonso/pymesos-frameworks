@@ -2,10 +2,11 @@ from __future__ import print_function
 
 import sys
 import time
+import random as random
 
 def minimalTask(message):
     logging.debug(message)
-    time.sleep(30)
+    time.sleep(random.randint(0,30))
 
 if __name__ == '__main__':
     import logging

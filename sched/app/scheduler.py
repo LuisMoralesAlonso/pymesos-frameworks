@@ -42,7 +42,7 @@ class MinimalScheduler(Scheduler):
     def checkTask(self, frameworkId):
 
         if int(self._redis.hget(os.getenv('MARATHON_APP_ID'),'max_tasks')) <= 0:
-            logging.info("maximum number of tasks")
+            logging.info("Reached xºmaximum number of tasks")
             raise Exception('maximum number of tasks')
         else:
             logging.info("number tasks available = "+self._redis.hget(os.getenv('MARATHON_APP_ID'),'max_tasks') + " of " + os.getenv("MAX_TASKS") )
@@ -109,10 +109,10 @@ def main(message):
     framework = Dict()
     framework.user = getpass.getuser()
     framework.name = "MinimalFramework"
-    framework.hosthname = socket.gethostname()
+    framework.hostname = socket.gethostname()
     if connection.hexists(os.getenv('MARATHON_APP_ID'),'fwk_id'):
         logging.info("framework id already registered in redis")
-        framework._id = connection.hget(os.getenv('MARATHON_APP_ID'),'fwk_id')
+        framework.id = connection.hget(os.getenv('MARATHON_APP_ID'),'fwk_id')
 
     driver = MesosSchedulerDriver(
         MinimalScheduler(message, connection),
@@ -123,6 +123,7 @@ def main(message):
 
 
     def signal_handler(signal, frame):
+        logging.info("Stopping Driver and closing redis connection")
         driver.stop()
 
     def run_driver_thread():
