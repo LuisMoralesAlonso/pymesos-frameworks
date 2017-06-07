@@ -1,9 +1,9 @@
 {
-  "id": "/minimal-pymesos",
-  "cmd": "/app/scheduler.sh test",
+  "id": "/pymesos-hello",
+  "cmd": "/app/scheduler.sh hola_mundo",
   "instances": 0,
-  "cpus": 0.2,
-  "mem": 256,
+  "cpus": 0.5,
+  "mem": 128,
   "disk": 0,
   "gpus": 0,
   "backoffSeconds": 1,
@@ -12,7 +12,7 @@
   "container": {
     "type": "DOCKER",
     "docker": {
-      "image": "luismorales/pymesos:4.0",
+      "image": "luismorales/pymesos:5.0",
       "privileged": false,
       "forcePullImage": true
     }
@@ -28,7 +28,7 @@
   "killSelection": "YOUNGEST_FIRST",
   "portDefinitions": [
     {
-      "port": 10101,
+      "port": 10103,
       "protocol": "tcp",
       "name": "default"
     }

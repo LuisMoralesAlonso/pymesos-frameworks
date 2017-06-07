@@ -5,9 +5,10 @@ import time
 import random as random
 
 def minimalTask(message):
-    logging.debug(message)
-    time.sleep(random.randint(0,30))
-
+    t = random.randint(0,30)
+    logging.debug(' '.join('mensaje:', message, 'time-sleep', t))
+    time.sleep()
+    
 if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.DEBUG)

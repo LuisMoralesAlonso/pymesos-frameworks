@@ -19,19 +19,23 @@ EXECUTOR_MEM = 32
 
 
 class MinimalScheduler(Scheduler):
-    def __init__(self, message, conn):
-        self._redis = conn
+    def __init__(self, message, master, task_imp, max_tasks, connection, fwk_name):
+        self._redis = connection
         self._message = message
+        self._master = master
+        self._max_tasks = max_tasks
+        self._task_imp = task_imp
+        self._fwk_name = fwk_name
 
     def registered(self, driver, frameworkId, masterInfo):
         #set max tasks to framework registered
-        logging.info("************registered     " + frameworkId['value'])
-        self._redis.hset(os.getenv('MARATHON_APP_ID'), 'max_tasks', int(os.getenv('MAX_TASKS')))
-        self._redis.hset(os.getenv('MARATHON_APP_ID'),'fwk_id',frameworkId['value'])
+        logging.info("************registered     ")
+        self._redis.hset(self._fwk_name, 'max_tasks', int(self._max_tasks))
+        logging.info(frameworkId)
+        self._redis.hset(self._fwk_name,'fwk_id', frameworkId['value'])
         #logging.info(masterInfo)
         #logging.info(driver)
         logging.info("<---")
-
     def reregistered(self, driver, masterInfo):
         logging.info("************re-registered  ")
         logging.info(masterInfo)
@@ -41,12 +45,12 @@ class MinimalScheduler(Scheduler):
 
     def checkTask(self, frameworkId):
 
-        if int(self._redis.hget(os.getenv('MARATHON_APP_ID'),'max_tasks')) <= 0:
-            logging.info("Reached xºmaximum number of tasks")
+        if int(self._redis.hget(self._fwk_name,'max_tasks')) <= 0:
+            logging.info("Reached maximum number of tasks")
             raise Exception('maximum number of tasks')
         else:
-            logging.info("number tasks available = "+self._redis.hget(os.getenv('MARATHON_APP_ID'),'max_tasks') + " of " + os.getenv("MAX_TASKS") )
-            self._redis.hincrby(os.getenv('MARATHON_APP_ID'),'max_tasks',-1)
+            logging.info("number tasks available = "+self._redis.hget(self._fwk_name,'max_tasks') + " of " + self._max_tasks)
+            self._redis.hincrby(self._fwk_name,'max_tasks',-1)
         #logging.info(framework)
         #logging.info(_redis.get('foo'))
         # queue????
@@ -70,7 +74,7 @@ class MinimalScheduler(Scheduler):
                 task.agent_id.value = offer.agent_id.value
                 task.name = 'task {}'.format(task_id)
                 task.container.type = 'DOCKER'
-                task.container.docker.image = os.getenv('DOCKER_TASK')
+                task.container.docker.image = self._task_imp
                 task.container.docker.network = 'HOST'
                 task.container.docker.force_pull_image = True
 
@@ -100,24 +104,24 @@ class MinimalScheduler(Scheduler):
                       update.state)
         if update.state == "TASK_FINISHED":
             logging.info("take another task for framework" + driver.framework_id)
-            self._redis.hincrby(os.getenv('MARATHON_APP_ID'),'max_tasks',1)
-            logging.info("tasks availables = " + self._redis.hget(os.getenv('MARATHON_APP_ID'),'max_tasks')+ " of "+os.getenv("MAX_TASKS"))
+            self._redis.hincrby(self._fwk_name,'max_tasks',1)
+            logging.info("tasks availables = " + self._redis.hget(self._fwk_name,'max_tasks')+ " of "+self._max_tasks)
             
     
-def main(message):
-    connection = redis.StrictRedis(host=os.getenv('REDIS_SERVER'), port=6379, db=0)
+def main(message, master, task_imp, max_tasks, redis_server):
+    connection = redis.StrictRedis(host=redis_server, port=6379, db=0)
     framework = Dict()
     framework.user = getpass.getuser()
-    framework.name = "MinimalFramework"
+    framework.name = "MoralesMinimalFramework"
     framework.hostname = socket.gethostname()
-    if connection.hexists(os.getenv('MARATHON_APP_ID'),'fwk_id'):
+    if connection.hexists(framework.name,'fwk_id'):
         logging.info("framework id already registered in redis")
-        framework.id = connection.hget(os.getenv('MARATHON_APP_ID'),'fwk_id')
+        framework.id = dict(value=connection.hget(framework.name,'fwk_id'))
 
     driver = MesosSchedulerDriver(
-        MinimalScheduler(message, connection),
+        MinimalScheduler(message, master, task_imp, max_tasks, connection, framework.name),
         framework,
-        os.getenv('MASTER'),
+        master,
         use_addict=True,
     )
 
@@ -125,6 +129,9 @@ def main(message):
     def signal_handler(signal, frame):
         logging.info("Stopping Driver and closing redis connection")
         driver.stop()
+        connection.delete(framework.name)
+        connection.disconnect()
+        connection = None
 
     def run_driver_thread():
         driver.run()
@@ -132,9 +139,9 @@ def main(message):
     driver_thread = Thread(target=run_driver_thread, args=())
     driver_thread.start()
 
-    print('master: {}'.format(os.getenv('MASTER')))
-    print('Scheduler running, Ctrl+C to quit.')
-    signal.signal(signal.SIGINT, signal_handler)
+    print('master: {}'.format(master))
+    print('Scheduler running...')
+    signal.signal(signal.SIGTERM, signal_handler)
 
     while driver_thread.is_alive():
         time.sleep(1)
@@ -144,8 +151,9 @@ if __name__ == '__main__':
     import logging
 
     logging.basicConfig(level=logging.DEBUG)
-    if len(sys.argv) != 2:
-        print("Usage: {} <message>".format(sys.argv[0]))
+    print(sys.argv)
+    if len(sys.argv) != 6:
+        print("Usage: {} <message> <master> <task> <max_tasks> <redis_server>".format(sys.argv[0]))
         sys.exit(1)
     else:
-        main(sys.argv[1])
+        main(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5])

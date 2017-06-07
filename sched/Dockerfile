@@ -37,9 +37,5 @@ RUN . /venv/bin/activate \
 
 RUN chmod a+x /app/scheduler.sh
 
-ENV MASTER 172.16.48.181
-ENV DOCKER_TASK luismorales/pymesos-exec:4.0
-ENV MAX_TASKS 5
-ENV REDIS_SERVER redis.marathon.l4lb.thisdcos.directory
-
-# CMD source /venv/bin/activate
+ENTRYPOINT ["/app/scheduler.sh"]
+CMD ["default_message","172.16.48.181", "luismorales/pymesos-exec:4.0", "5", "redis.marathon.l4lb.thisdcos.directory"]
