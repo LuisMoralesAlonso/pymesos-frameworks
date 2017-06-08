@@ -36,6 +36,7 @@ class MinimalScheduler(Scheduler):
         #logging.info(masterInfo)
         #logging.info(driver)
         logging.info("<---")
+
     def reregistered(self, driver, masterInfo):
         logging.info("************re-registered  ")
         logging.info(masterInfo)
@@ -44,7 +45,6 @@ class MinimalScheduler(Scheduler):
         logging.info("<---")
 
     def checkTask(self, frameworkId):
-
         if int(self._redis.hget(self._fwk_name,'max_tasks')) <= 0:
             logging.info("Reached maximum number of tasks")
             raise Exception('maximum number of tasks')
@@ -125,13 +125,10 @@ def main(message, master, task_imp, max_tasks, redis_server):
         use_addict=True,
     )
 
-
     def signal_handler(signal, frame):
-        logging.info("Stopping Driver and closing redis connection")
+        logging.info("Closing redis connection, cleaning scheduler data and stopping MesosSchdulerDriver")
+        logging.info("Stop driver")
         driver.stop()
-        connection.delete(framework.name)
-        connection.disconnect()
-        connection = None
 
     def run_driver_thread():
         driver.run()
@@ -139,21 +136,24 @@ def main(message, master, task_imp, max_tasks, redis_server):
     driver_thread = Thread(target=run_driver_thread, args=())
     driver_thread.start()
 
-    print('master: {}'.format(master))
-    print('Scheduler running...')
     signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
 
     while driver_thread.is_alive():
         time.sleep(1)
 
+    logging.info("Borramos redis")
+    connection.delete(framework.name)
+ 
+    logging.info("Disconnect from redis")
+    connection.disconnect()
+    connection = None    
 
 if __name__ == '__main__':
     import logging
-
     logging.basicConfig(level=logging.DEBUG)
-    print(sys.argv)
     if len(sys.argv) != 6:
         print("Usage: {} <message> <master> <task> <max_tasks> <redis_server>".format(sys.argv[0]))
         sys.exit(1)
     else:
-        main(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5])
+        main(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5])        
