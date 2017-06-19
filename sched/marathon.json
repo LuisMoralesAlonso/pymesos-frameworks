@@ -1,6 +1,6 @@
 {
   "id": "/pymesos-mesos",
-  "instances": 0,
+  "instances": 1,
   "cpus": 0.1,
   "mem": 128,
   "disk": 0,
