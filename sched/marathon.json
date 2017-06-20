@@ -12,7 +12,7 @@
   "container": {
     "type": "MESOS",
     "docker": {
-      "image": "luismorales/pymesos:6.0",
+      "image": "luismorales/pymesos:7.0",
       "forcePullImage": true
     }
   },

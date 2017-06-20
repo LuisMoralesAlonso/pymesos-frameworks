@@ -24,7 +24,6 @@ class MinimalScheduler(Scheduler):
         self._helper=rhelper.Helper(connection,fwk_name)
 
     def registered(self, driver, frameworkId, masterInfo):
-        #set max tasks to framework registered
         logging.info("************registered     ")
         self._helper.register(frameworkId['value'],masterInfo)
         logging.info("<---")
@@ -38,11 +37,12 @@ class MinimalScheduler(Scheduler):
         filters = {'refuse_seconds': 5}
         for offer in offers:
             try:
+                logging.info(offer)
                 #self.checkTask(driver.framework_id)
                 self._helper.checkTask(self._max_tasks)
                 cpus = self.getResource(offer.resources, 'cpus')
                 mem = self.getResource(offer.resources, 'mem')
-                if cpus < TASK_CPU or mem < TASK_MEM:
+                if cpus < constants.TASK_CPU or mem < constants.TASK_MEM:
                     continue
 
                 task = Dict()
@@ -56,8 +56,8 @@ class MinimalScheduler(Scheduler):
                 task.container.docker.force_pull_image = True
 
                 task.resources = [
-                    dict(name='cpus', type='SCALAR', scalar={'value': TASK_CPU}),
-                    dict(name='mem', type='SCALAR', scalar={'value': TASK_MEM}),
+                    dict(name='cpus', type='SCALAR', scalar={'value': constants.TASK_CPU}),
+                    dict(name='mem', type='SCALAR', scalar={'value': constants.TASK_MEM}),
                 ]
                 task.command.shell = True
                 task.command.value = '/app/task.sh ' + self._message
@@ -83,7 +83,9 @@ class MinimalScheduler(Scheduler):
         if update.state == "TASK_FINISHED":
             logging.info("take another task for framework" + driver.framework_id)
             self._helper.removeTaskFromState(update.task_id.value)
-            logging.info("tasks availables = " + self.helper.getNumberOfTasks() + " of " + self._max_tasks)
+            logging.info("tasks availables = " + str(self._helper.getNumberOfTasks()) + " of " + self._max_tasks)
+        else:
+             self._helper.addTaskToState(update)   
             
     
 def main(message, master, task_imp, max_tasks, redis_server):
@@ -92,9 +94,9 @@ def main(message, master, task_imp, max_tasks, redis_server):
     framework.user = getpass.getuser()
     framework.name = "MoralesMinimalFramework"
     framework.hostname = socket.gethostname()
-    if connection.exists(":".join([framework.name,constants.REDIS_FW_ID]):
+    if connection.exists(":".join([framework.name,constants.REDIS_FW_ID])):
         logging.info("framework id already registered in redis")
-        framework.id = dict(value=connection.get(":".join([framework.name,constants.REDIS_FW_ID])
+        framework.id = dict(value=connection.get(":".join([framework.name,constants.REDIS_FW_ID])))
 
     driver = MesosSchedulerDriver(
         MinimalScheduler(message, master, task_imp, max_tasks, connection, framework.name),

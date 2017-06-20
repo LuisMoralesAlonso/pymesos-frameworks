@@ -1,18 +1,23 @@
 from addict import Dict
 import constants
+import logging
+
 class Helper():
 
     def __init__(self,redis,fwk_name):
         self._redis = redis
         self._fwk_name = fwk_name
 
-    def register(self, fwd_id, master_info):
-        self._redis.set(":".join([self._fwk_name, constants.REDIS_FW_ID]), fwk_id)
+    def register(self, fwkid, master_info):
+        logging.info(fwkid)
+        self._redis.set(":".join([self._fwk_name, constants.REDIS_FW_ID]), fwkid)
+        logging.info(master_info)
         self._redis.hmset(":".join([self._fwk_name, constants.REDIS_MASTER_INFO]),master_info)
+
 
     def reregister(self, master_info):    
         self._redis.hmset(":".join([self._fwk_name, constants.REDIS_MASTER_INFO]),master_info)
-
+    
     def getTasksSet(self,setName):
         tasks = self._redis.hget(self._fwk_name,setName)
         if tasks == None:
@@ -23,35 +28,21 @@ class Helper():
 
     def initUpdateValue(self,taskId):
         update=Dict()
-        update.value=taskId
-        update.container_status=''
+        update.executor_id= dict(value='')
+        update.uuid=''
+        update.task_id=dict(value=taskId)
+        update.container_status=dict()
         update.source=''
-        update.state='STAGING'
-        update.agent_id=''
+        update.state='TASK_STAGING'
+        update.agent_id=dict(value='')
         return update
-    '''
-    methods to generate update keys
-    '''
-    def getContainerKey(self,taskId):
-        return taskId+constants.CONTAINER_KEY_TAG
-    def getSourceKey(self,taskId):
-        return taskId+constants.SOURCE_KEY_TAG
-    def getStateKey(self,taskId):
-        return taskId+constants.STATE_KEY_TAG
-    def getAgentKey(self,taskId):
-        return taskId+constants.AGENT_KEY_TAG
 
     def getTaskState(self,update):
         task=Dict()
-        #generate keys
-        containerKey=self.getContainerKey(update.task_id.value)
-        sourceKey=self.getSourceKey(update.task_id.value)
-        stateKey=self.getStateKey(update.task_id.value)
-        agentKey=self.getAgentKey(update.task_id.value)
-        task[containerKey] = update.container_status
-        task[sourceKey] = update.source
-        task[stateKey] = update.state
-        task[agentKey] = update.agent_id
+        logging.info(update)
+        task[constants.SOURCE_KEY_TAG] = update.source
+        task[constants.STATE_KEY_TAG] = update.state
+        task[constants.AGENT_KEY_TAG] = update.agent_id['value']
         return task
 
     '''
@@ -62,13 +53,13 @@ class Helper():
     maxTasks (string) : maximum number of allowed tasks
     '''
     def checkTask(self,maxTasks):
-        print("CHECK TASK: " + str(self.getNumberOfTasks())+ " "+maxTasks)
-        if self.getNumberOfTasks()>=int(maxTasks):
-            print("Reached maximum number of tasks")
+        count = self.getNumberOfTasks()
+        logging.info("CHECK TASK: " + str(count) + " "+maxTasks)
+        if count >= int(maxTasks):
+            logging.info("Reached maximum number of tasks")
             raise Exception('maximum number of tasks')
         else:
-            print(
-                "number tasks used = " + self.getNumberOfTasks().__str__() + " of " + maxTasks)
+            logging.info("number tasks used = " + str(count) + " of " + maxTasks)
 
 
     '''
@@ -84,9 +75,9 @@ class Helper():
     '''
     def addTaskToState(self,updateTask):
         task=self.getTaskState(updateTask)
-        print("add task")
-        print(task)
-        self._redis.hmset(":".join([self._fwk_name, constants.REDIS_TASKS_SET],updateTask['value']), task)
+        logging.info("add task")
+        logging.info(task)
+        self._redis.hmset(":".join([self._fwk_name, constants.REDIS_TASKS_SET,updateTask['task_id']['value']]), task)
     '''
     Method that removes a task from framework (key) state
     Parameters
@@ -94,7 +85,7 @@ class Helper():
     taskId (string): identifier of the task
     '''
     def removeTaskFromState(self,taskId):
-        self._redis.hdel(":".join([self._fwk_name, constants.REDIS_TASKS_SET],taskId))
+        self._redis.delete(":".join([self._fwk_name, constants.REDIS_TASKS_SET,taskId]))
 
 
     '''
@@ -102,4 +93,5 @@ class Helper():
     '''
     def getNumberOfTasks(self):
 #        return len(self._redis.hkeys(self._fwk_name))//4
-        return self._redis.scan(":".join([self._fwk_name, constants.REDIS_TASKS_SET],'*'))[0]
+        actualTasks = self._redis.scan(match = ":".join([self._fwk_name, constants.REDIS_TASKS_SET,'*']))[1]
+        return len(actualTasks)
