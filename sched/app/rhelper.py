@@ -9,9 +9,7 @@ class Helper():
         self._fwk_name = fwk_name
 
     def register(self, fwkid, master_info):
-        logging.info(fwkid)
         self._redis.set(":".join([self._fwk_name, constants.REDIS_FW_ID]), fwkid)
-        logging.info(master_info)
         self._redis.hmset(":".join([self._fwk_name, constants.REDIS_MASTER_INFO]),master_info)
 
 
@@ -54,9 +52,7 @@ class Helper():
     '''
     def checkTask(self,maxTasks):
         count = self.getNumberOfTasks()
-        logging.info("CHECK TASK: " + str(count) + " "+maxTasks)
         if count >= int(maxTasks):
-            logging.info("Reached maximum number of tasks")
             raise Exception('maximum number of tasks')
         else:
             logging.info("number tasks used = " + str(count) + " of " + maxTasks)
@@ -75,8 +71,6 @@ class Helper():
     '''
     def addTaskToState(self,updateTask):
         task=self.getTaskState(updateTask)
-        logging.info("add task")
-        logging.info(task)
         self._redis.hmset(":".join([self._fwk_name, constants.REDIS_TASKS_SET,updateTask['task_id']['value']]), task)
     '''
     Method that removes a task from framework (key) state

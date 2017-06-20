@@ -37,7 +37,6 @@ class MinimalScheduler(Scheduler):
         filters = {'refuse_seconds': 5}
         for offer in offers:
             try:
-                logging.info(offer)
                 #self.checkTask(driver.framework_id)
                 self._helper.checkTask(self._max_tasks)
                 cpus = self.getResource(offer.resources, 'cpus')
@@ -62,8 +61,6 @@ class MinimalScheduler(Scheduler):
                 task.command.shell = True
                 task.command.value = '/app/task.sh ' + self._message
                 # task.command.arguments = [self._message]
-                # logging.info(task)
-                logging.info("launch task name:" + task.name + " resources: " + ",".join(str(x) for x in task.resources))
                 self._helper.addTaskToState(self._helper.initUpdateValue(task_id))
                 driver.launchTasks(offer.id, [task], filters)
             except Exception:
@@ -80,10 +77,10 @@ class MinimalScheduler(Scheduler):
         logging.debug('Status update TID %s %s',
                       update.task_id.value,
                       update.state)
-        if update.state == "TASK_FINISHED":
-            logging.info("take another task for framework" + driver.framework_id)
+        if update.state in constants.TERMINAL_STATES:
+            logging.info("another task available for framework" + driver.framework_id)
             self._helper.removeTaskFromState(update.task_id.value)
-            logging.info("tasks availables = " + str(self._helper.getNumberOfTasks()) + " of " + self._max_tasks)
+            logging.info("tasks used = " + str(self._helper.getNumberOfTasks()) + " of " + self._max_tasks)
         else:
              self._helper.addTaskToState(update)   
             
