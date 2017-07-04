@@ -5,7 +5,7 @@ import time
 import socket
 import signal
 import getpass
-from threading import Thread
+from threading import Thread, Timer
 import os
 import redis, hiredis
 from pymesos import MesosSchedulerDriver, Scheduler, encode_data
@@ -23,7 +23,7 @@ class MinimalScheduler(Scheduler):
         self._fwk_name = fwk_name
         self._helper=rhelper.Helper(connection,fwk_name)
         self.accept_offers = True
-        self._timers = []
+        self._timers = {}
 
     def registered(self, driver, frameworkId, masterInfo):
         logging.info("************registered     ")
@@ -33,7 +33,10 @@ class MinimalScheduler(Scheduler):
     def reregistered(self, driver, masterInfo):
         logging.info("************re-registered  ")
         self._helper.reregister(masterInfo)
+        driver.suppressOffers()
         driver.reconcileTasks([])
+        #Must include a flag to indicate that tasks reconciliation has finished
+        driver.reviveOffers()
         logging.info("<---")
 
     def resourceOffers(self, driver, offers):
@@ -65,15 +68,17 @@ class MinimalScheduler(Scheduler):
                 task.command.value = '/app/task.sh ' + self._message
                 # task.command.arguments = [self._message]
                 self._helper.addTaskToState(self._helper.initUpdateValue(task_id))
-                self._timers[task_id] = Timer(10.0, validateRunning(), args=[task_id,driver])
-                driver.launchTasks(offer.id, [task], filters)
+                #self._timers[task_id] = Timer(10.0,self.validateRunning(),kwargs={'taskid':task_id,'driver':driver,}).start()
+                self._timers[task_id] = Timer(10.0,self.validateRunning,kwargs={'taskid' : task_id, 'driver': driver})
                 self._timers[task_id].start()
-            except Exception:
+                driver.launchTasks(offer.id, [task], filters)
+            except Exception, e:
+                logging.info(e)
                 driver.declineOffer(offer.id, filters)
 
-    def validateRunning(self, taskid, driver):
-        driver.reconcileTasks([dict(task_id=taskid)])
-        self._timers.remove(taskid)
+    def validateRunning(self, **kwargs):
+        del self._timers[kwargs['taskid']]
+        kwargs['driver'].reconcileTasks([dict(task_id={'value':kwargs['taskid']})])
 
     def getResource(self, res, name):
         for r in res:
@@ -85,28 +90,15 @@ class MinimalScheduler(Scheduler):
         logging.debug('Status update TID %s %s',
                       update.task_id.value,
                       update.state)
-        if self._timers[update.task_id]:
-            self._timers[update.task_id].cancel()
-            self._timers.remove(update.task_id)
+        if update.task_id.value in self._timers.keys():
+            self._timers[update.task_id.value].cancel()
+            del self._timers[update.task_id.value]
         if update.state in constants.TERMINAL_STATES:
-            logging.info("another task available for framework" + driver.framework_id)
+            logging.info("terminal state for task: " + update.task_id.value)
             self._helper.removeTaskFromState(update.task_id.value)
             logging.info("tasks used = " + str(self._helper.getNumberOfTasks()) + " of " + self._max_tasks)
         else:
              self._helper.addTaskToState(update)   
-
-    '''
-    Method that get all task from framework state and send them to be reconciled
-    '''
-    def reconcile(self,driver,tasks,periodic=True,period=10.0):
-        logging.info("RECONCILE TASK(S)")
-        if tasks is not None:
-            #if there are tasks to reconcile, no offer will be acepted until finishing these tasks
-            logging.info("SUPRESS OFFERS")
-            driver.suppressOffers()
-            driver.reconcileTasks(
-                map(lambda task: self._helper.convertTaskIdToSchedulerFormat(task),
-                    tasks))
             
     
 def main(message, master, task_imp, max_tasks, redis_server):
@@ -143,6 +135,10 @@ def main(message, master, task_imp, max_tasks, redis_server):
         time.sleep(1)
  
     logging.info("Disconnect from redis")
+    keys = connection.scan(match = ":".join([framework.name,'*']))[1]
+    logging.info(keys)
+    entries = connection.delete(keys)
+    logging.info(entries)
     connection = None    
 
 if __name__ == '__main__':

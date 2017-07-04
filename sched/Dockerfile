@@ -7,8 +7,6 @@ MAINTAINER l.morales@bbva.com
 
 # copy the contents of the `app/` folder into the container at build time
 ADD pymesos/ /pymesos/
-# copy the contents of the `app/` folder into the container at build time
-ADD app/ /app/
 
 #run commands:
 RUN apt-get update && apt-get install -y python3 python-dev python3-dev python-pip libzookeeper-mt-dev \
@@ -34,6 +32,9 @@ RUN . /venv/bin/activate \
     rm -rf /var/cache/debconf/*-old && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /usr/share/doc/*
+
+# copy the contents of the `app/` folder into the container at build time
+ADD app/ /app/
 
 RUN chmod a+x /app/scheduler.sh
 
