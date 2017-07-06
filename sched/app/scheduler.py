@@ -137,7 +137,7 @@ def main(message, master, task_imp, max_tasks, redis_server):
     logging.info("Disconnect from redis")
     keys = connection.scan(match = ":".join([framework.name,'*']))[1]
     logging.info(keys)
-    entries = connection.delete(keys)
+    entries = connection.delete(*keys)
     logging.info(entries)
     connection = None    
 

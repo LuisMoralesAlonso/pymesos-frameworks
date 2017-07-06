@@ -26,12 +26,14 @@ class Helper():
 
     def initUpdateValue(self,taskId):
         update=Dict()
-        update.executor_id= dict(value='')
+        update.executor_id= dict(value=self._fwk_name)
         update.uuid=''
         update.task_id=dict(value=taskId)
         update.container_status=dict()
-        update.source=''
+        update.source='framework'
+        update.reason='task asked by framework'
         update.state='TASK_STAGING'
+
         update.agent_id=dict(value='')
         return update
 
